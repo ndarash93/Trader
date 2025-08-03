@@ -1,6 +1,8 @@
 import os
 import time
 import requests
+import pandas
+from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -11,25 +13,31 @@ ORG = os.getenv("ORG")
 
 class Flux:
   def __init__(self, influx_url, org, bucket, token):
-    self.influx_url = influx_url  # e.g. "http://localhost:8086"
+    self.influx_url = influx_url
     self.bucket = bucket
     self.org = org
     self.token = token
 
-  def push_to_influxdb(self, confirmed, unconfirmed, price, address):
+  def pull(self):
     query = f'''
     from(bucket: "{BUCKET}")
-    |> range
+    |> range(start: 0)
+    |> filter(fn: (r) => r["_measurement"] == "btc_balance")
+    |> filter(fn: (r) => r["_field"] == "price")
     '''
-    url = f"{self.influx_url}/api/v2/write?bucket={self.bucket}&org={self.org}&precision=ns"
+    print('query', query)
+    #url = f"{self.influx_url}/api/v2/query?bucket={self.bucket}&org={self.org}&precision=ns"
+    url = f"{self.influx_url}/api/v2/query?org={self.org}"
     headers = {
-      "Authorization": f"Token {self.token}",
-      "Content-Type": "text/plain"
+      "Authorization": f"Token {self.token}"
+      ,"Content-Type": "application/vnd.flux"
+      #i,"Accept": "application/json"
     }
 
-    r = requests.post(url, headers=headers, data=line)
-    if r.status_code != 204:
-      pass
+    r = requests.post(url, headers=headers, data=query)
+    if r.status_code == 200:
+      with open("btc_price.csv", "w", newline="") as f:
+        f.write(r.text)
     else:
       pass
 
@@ -42,4 +50,13 @@ if __name__ == "__main__":
     token=TOKEN
   )
 
-  flux.push_to_influxdb(12345678, 1234, 100000, "bc1qyouraddress")
+  #flux.pull()
+  csv = pandas.read_csv('btc_price.csv')
+  count = 0
+
+  data = []
+  for index, row in csv.iterrows():
+    time = datetime.fromisoformat(row["_time"].rstrip('Z')[:26])
+    val = row["_value"]
+    data.append(dict(time=time, price=val))
+  print(data)
