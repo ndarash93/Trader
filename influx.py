@@ -51,12 +51,33 @@ if __name__ == "__main__":
   )
 
   #flux.pull()
+
+  start = {"USD": 500, "BTC": 0.005}
+
   csv = pandas.read_csv('btc_price.csv')
   count = 0
-
+  prev_price = csv['_value'][0]
+  #print(csv['_value'][0])
+  #"""
   data = []
   for index, row in csv.iterrows():
-    time = datetime.fromisoformat(row["_time"].rstrip('Z')[:26])
+    dt = datetime.fromisoformat(row["_time"].rstrip('Z')[:26])
     val = row["_value"]
-    data.append(dict(time=time, price=val))
-  print(data)
+    data.append(dict(year=dt.year, month=dt.month, day=dt.day, hour=dt.hour, minute=dt.minute, price=val))
+    if dt.hour == 0 and dt.minute == 0:
+      change = (val - prev_price)/abs(prev_price)
+      prev_price = val
+      #print(change)
+      #if change > 0:
+      start["BTC"] = start["BTC"] * (1-(change))
+      start["USD"] = start["USD"] + (change*start["BTC"]*val)
+      print("Change:", change, "BTC:", start["BTC"], "USD:", start["USD"], "Total:", (start["USD"]/val) + start["BTC"])
+      #else:
+        #start["BTC"] = start["BTC"] * (1+change)
+
+  
+  #print(data)
+  #"""
+
+  #dt = datetime.fromisoformat("2025-05-22T22:50:00.502010")
+  #print(dt.year)
